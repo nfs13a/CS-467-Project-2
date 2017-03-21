@@ -15,7 +15,7 @@ fun readlist (infile : string) = let
 	in loop ins before TextIO.closeIn ins
 end;
 
-val fileInput = readlist "h09.csv";
+val fileInput = readlist "hSh.csv";
 
 (* max capacity of sack *)
 val SOME houses = Int.fromString (hd fileInput);
@@ -49,6 +49,8 @@ fun getPreference (a, b, p::pt:(int * int list) list) = let
 	in if a = 1 then getVal(b, #2p) else getPreference(a - 1, b, pt)
 end;
 
+
+
 (* start at house 0, go through house n - 1 (house n cannot exist) *)
 fun fitness (member,n) = let
 	(* for a house n, computes the fitness for the people in the house *)
@@ -62,9 +64,17 @@ fun fitness (member,n) = let
 		  	val next = singeFits (mt, n, i, j + 1)
 		  	in if m = n then getPreference(i, j, prefs) + next else next
 		end;
-		in if i <= (length prefs) andalso m = n then singeFits(member, n, i, 1) + next else 0 + next
+		fun houseBalance (member, n) = if (((length prefs) div houses) - length (List.filter (fn x => x = n) member)) < 2 then (length prefs) div houses else 0;
+		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 2 then 1 else 0; *)
+		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then (length prefs) div houses else 0; *)
+		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then 1 else 0; *)
+		in if i <= (length prefs) andalso m = n then singeFits(member, n, i, 1) + houseBalance(member, i) + next else 0 + next
 	end;
-	in if n = houses then 0 else houseFit(member, member, n, 1) + fitness(member, n + 1)
+	fun balanced (member, n) = let
+		val len = length (List.filter (fn x => x = n) member)
+		in if n = houses then true else len > 0 andalso len < length prefs div houses + 2 andalso balanced (member, n + 1)
+	end
+	in if not (balanced (member,0)) orelse n = houses then 0 else houseFit(member, member, n, 1) + fitness(member, n + 1)
 end;
 
 (* inserts the a bit string into population when building the initial population *)
@@ -151,9 +161,16 @@ fun waitForIt (L,P) = let
 	in if length trueNewFinalMembers = 3 orelse seconds > 600.0 then (hd trueNewFinalMembers) else waitForIt(massMutate(trueNewFinalMembers), newPop)
 end;
 
-Control.Print.printLength := length globes;
+fun addIdentifiersToAnswer (m::nil, i) = [(i,m)]
+  | addIdentifiersToAnswer (m::ms, i) = (i,m)::addIdentifiersToAnswer(ms, i + 1);
+
+fun formatHouses (answerMember:(int * int) list, n) = if n = houses then nil else (foldl (fn (x,s) => if #2x = n then s@[#1x] else s) nil answerMember)::formatHouses(answerMember, n + 1);
+
+Control.Print.printLength := length prefs;
 
 val answer = waitForIt([], population);
+
+val formattedAnswer = formatHouses ( addIdentifiersToAnswer (answer, 1), 0);
 
 val happiness = fitness (answer, 0);
 
