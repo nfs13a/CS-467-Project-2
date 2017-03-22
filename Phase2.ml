@@ -15,7 +15,7 @@ fun readlist (infile : string) = let
 	in loop ins before TextIO.closeIn ins
 end;
 
-val fileInput = readlist "hSh.csv";
+val fileInput = readlist "h100.csv";
 
 (* max capacity of sack *)
 val SOME houses = Int.fromString (hd fileInput);
