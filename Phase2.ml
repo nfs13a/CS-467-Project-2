@@ -15,7 +15,7 @@ fun readlist (infile : string) = let
 	in loop ins before TextIO.closeIn ins
 end;
 
-val fileInput = readlist "h100.csv";
+val fileInput = readlist "h10.csv";
 
 (* max capacity of sack *)
 val SOME houses = Int.fromString (hd fileInput);
@@ -49,48 +49,61 @@ fun getPreference (a, b, p::pt:(int * int list) list) = let
 	in if a = 1 then getVal(b, #2p) else getPreference(a - 1, b, pt)
 end;
 
-
-
-(* start at house 0, go through house n - 1 (house n cannot exist) *)
-fun fitness (member,n) = let
-	(* for a house n, computes the fitness for the people in the house *)
-	(* full member, member position to examine, house number, individual number *)
-	fun houseFit (member, nil, n, i) = 0
-	  | houseFit (member:int list, m::ms:int list, n, i) = let
-		val next = houseFit(member, ms, n, i + 1);
-		(* given an individual i, computes the fitness of i with the rest of the members of the house *)
-		fun singeFits (m::nil:int list, n, i, j) = if m = n then getPreference(i, j, prefs) else 0
-		  | singeFits (m::mt:int list, n, i, j) = let
-		  	val next = singeFits (mt, n, i, j + 1)
-		  	in if m = n then getPreference(i, j, prefs) + next else next
-		end;
-		fun houseBalance (member, n) = if (((length prefs) div houses) - length (List.filter (fn x => x = n) member)) < 2 then (length prefs) div houses else 0;
-		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 2 then 1 else 0; *)
-		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then (length prefs) div houses else 0; *)
-		(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then 1 else 0; *)
-		in if i <= (length prefs) andalso m = n then singeFits(member, n, i, 1) + houseBalance(member, i) + next else 0 + next
-	end;
+fun f (member, n) = let
 	fun balanced (member, n) = let
-		val len = length (List.filter (fn x => x = n) member)
-		in if n = houses then true else len > 0 andalso len < length prefs div houses + 2 andalso balanced (member, n + 1)
+			val len = length (List.filter (fn x => x = n) member)
+			in if n < houses - 1 then len > 0 andalso balanced (member, n + 1) else len > 0
+	end;
+	(* start at house 0, go through house n - 1 (house n cannot exist) *)
+	fun fitness (member,n) = let
+		(* for a house n, computes the fitness for the people in the house *)
+		(* full member, member position to examine, house number, individual number *)
+		fun houseFit (member, nil, n, i) = 0
+		  | houseFit (member:int list, m::ms:int list, n, i) = let
+			val next = houseFit(member, ms, n, i + 1);
+			(* given an individual i, computes the fitness of i with the rest of the members of the house *)
+			fun singeFits (m::nil:int list, n, i, j) = if m = n then getPreference(i, j, prefs) else 0
+			  | singeFits (m::mt:int list, n, i, j) = let
+			  	val next = singeFits (mt, n, i, j + 1)
+			  	in if m = n then getPreference(i, j, prefs) + next else next
+			end;
+			fun houseBalance (member, n) = let 
+				val len = length (List.filter (fn x => x = n) member)
+				fun log2 (n,e) = let
+					fun exp2 (e) = if e = 0 then 1 else 2 * exp2(e - 1)
+					in if exp2 e + 1 > n then e else log2 (n, e + 1)
+				end;
+				val pdh = (length prefs) div houses
+				in if len > 0 andalso abs (len - pdh) < log2 (pdh, 0) then (length prefs) else 0
+			end
+			(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 2 then 1 else 0; *)
+			(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then (length prefs) div houses else 0; *)
+			(* fun houseBalance (member, n) = if abs (length (List.filter (fn x => x = n) member) - ((length prefs) div houses)) < 1 then 1 else 0; *)
+			in if i <= (length prefs) andalso m = n then singeFits(member, n, i, 1) + houseBalance(member, i) + next else 0 + next
+		end;
+		fun balanced (member, n) = let
+			val len = length (List.filter (fn x => x = n) member)
+			in if len = 0 then false else true
+		end
+		in if n = houses then 0 else houseFit(member, member, n, 1) + fitness(member, n + 1)
 	end
-	in if not (balanced (member,0)) orelse n = houses then 0 else houseFit(member, member, n, 1) + fitness(member, n + 1)
+	in if not (balanced (member, n)) then 0 else fitness (member, n)
 end;
 
 (* inserts the a bit string into population when building the initial population *)
-fun insert (nil, newMember) = if fitness (newMember,0) > 0 then [newMember] else nil
+fun insert (nil, newMember) = if f (newMember,0) > 0 then [newMember] else nil
 (* if newMember is not better than current, do not insert it, else add the rest of the old after it except the last *)
-  | insert (h::t, newMember) = if fitness (h,0) >= fitness (newMember,0) then h::insert(t, newMember) else newMember::complete(h::t)
+  | insert (h::t, newMember) = if f (h,0) >= f (newMember,0) then h::insert(t, newMember) else newMember::complete(h::t)
 (* once the new member has been inserted,  *)
 and complete (nil) = nil
   | complete (h::nil) = []
   | complete (h::t) = h::complete(t);
 
-fun insertWhenFull (h::nil, newMember) = if fitness (h,0) >= fitness (newMember,0) then [h] else [newMember]
+fun insertWhenFull (h::nil, newMember) = if f (h,0) >= f (newMember,0) then [h] else [newMember]
 (* if newMember is not better than current, do not insert it, else add the rest of the old after it except the last *)
   | insertWhenFull (h::t, newMember) = let
   	val tuple = insertWhenFull(t, newMember)
-	in if fitness (h,0) >= fitness (newMember,0) then h::tuple else newMember::complete(h::t)
+	in if f (h,0) >= f (newMember,0) then h::tuple else newMember::complete(h::t)
 end;
 
 fun createPop p = let
@@ -112,13 +125,13 @@ fun getLast (h::nil) = h
 
 fun shouldMutate () = mutationChance r = 0;
 
-fun flipVals (c::nil) = if shouldMutate() then [(c + 1) mod (length prefs)] else [c] 
-  | flipVals (c::cs) = if shouldMutate() then ((c + 1) mod (length prefs))::flipVals(cs) else c::flipVals(cs);
+fun flipVals (c::nil) = if shouldMutate() then [(c + 1) mod houses] else [c] 
+  | flipVals (c::cs) = if shouldMutate() then ((c + 1) mod houses)::flipVals(cs) else c::flipVals(cs);
 
 fun shouldMutateHarshly () = harshMutationChance r = 0;
 
-fun flipValsHarshly (c::nil) = if shouldMutateHarshly() then [(c + 1) mod (length prefs)] else [c] 
-  | flipValsHarshly (c::cs) = if shouldMutateHarshly() then ((c + 1) mod (length prefs))::flipVals(cs) else c::flipVals(cs);
+fun flipValsHarshly (c::nil) = if shouldMutateHarshly() then [(c + 1) mod houses] else [c] 
+  | flipValsHarshly (c::cs) = if shouldMutateHarshly() then ((c + 1) mod houses)::flipVals(cs) else c::flipVals(cs);
 
 (* waits for 3 equal convergences of population or timeout *)
 fun waitForIt (L,P) = let
@@ -172,7 +185,7 @@ val answer = waitForIt([], population);
 
 val formattedAnswer = formatHouses ( addIdentifiersToAnswer (answer, 1), 0);
 
-val happiness = fitness (answer, 0);
+val happiness = f (answer, 0);
 
 printTime();
 
