@@ -1,11 +1,3 @@
-(* for keeping track of program run time *)
-val timer = Timer.startCPUTimer();
-
-fun printTime () = 
-	let	val {sys:Time.time, usr:Time.time} = Timer.checkCPUTimer timer
-	in Real.toString ((real (LargeInt.toInt (Time.toMicroseconds usr)) + real (LargeInt.toInt(Time.toMicroseconds sys)) )/ 1000000.0) ^ " seconds"
-end;
-
 fun readlist (infile : string) = let
   val ins = TextIO.openIn infile
   fun loop ins =
@@ -15,7 +7,21 @@ fun readlist (infile : string) = let
 in loop ins before TextIO.closeIn ins
 end;
 
-val fileInput = readlist "F2.csv";
+fun trimLast s = String.substring(s, 0, size s - 1)
+
+val SOME filename = TextIO.inputLine TextIO.stdIn;
+
+val filename = trimLast filename;
+
+(* for keeping track of program run time *)
+val timer = Timer.startCPUTimer();
+
+fun printTime () = 
+	let	val {sys:Time.time, usr:Time.time} = Timer.checkCPUTimer timer
+	in Real.toString ((real (LargeInt.toInt (Time.toMicroseconds usr)) + real (LargeInt.toInt(Time.toMicroseconds sys)) )/ 1000000.0) ^ " seconds"
+end;
+
+val fileInput = readlist (filename^".csv");
 
 (* max capacity of sack *)
 val SOME cap = Int.fromString (hd fileInput);
@@ -24,7 +30,7 @@ fun toGlobes (nil) = []
   | toGlobes (a::b::c::d) = 
 	let val SOME C = Int.fromString c;
   		val SOME B = Int.fromString b;
-  		val A = str (hd (explode a))
+  		val A = trimLast a
   	in (C, B, A)::toGlobes d 
   end;
 
@@ -167,7 +173,7 @@ fun waitForIt (L,P,n) =
 		val {sys:Time.time, usr:Time.time} = Timer.checkCPUTimer timer;
 		val seconds = (real (LargeInt.toInt (Time.toMicroseconds usr)) + real (LargeInt.toInt(Time.toMicroseconds sys)) )/ 1000000.0
 	(* stop at 3 equal convergences or timeout *)
-	in if length trueNewFinalMembers = 3 orelse seconds > 600.0 then (hd trueNewFinalMembers, newFitnessCount) else waitForIt(massMutate(trueNewFinalMembers), newPop, newFitnessCount)
+	in if length trueNewFinalMembers = 3 orelse seconds > 60.0 then (hd trueNewFinalMembers, newFitnessCount) else waitForIt(massMutate(trueNewFinalMembers), newPop, newFitnessCount)
 end;
 
 Control.Print.printLength := length globes;
@@ -176,10 +182,10 @@ val (answer,callsToFitness) = waitForIt([], population, 0);
 
 val sack = getItemsFromBits(answer,globes);
 
-getValueFromBits (answer,globes);
+val finalValue = getValueFromBits (answer,globes);
 
-getCostFromBits (answer,globes);
+val finalCost = getCostFromBits (answer,globes);
 
-printTime();
+val finalTime = printTime();
 
 Control.Print.printLength := 10;

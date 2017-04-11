@@ -1,0 +1,26 @@
+If you do not have SML NJ already installed, visit http://www.smlnj.org/install/index.html and follow the appropriate instructions.
+
+Open command line. From this directory, run sml.
+
+Run the command:
+	use "PhaseX.ml";
+and replace the X with 1, 2, or 3, depending on the desired phase.
+
+The program will create initial functions and then appear to pause. At this point, enter a csv filename without the extension.
+	Phase 1: {A1,A2,A3,A4,B1,B2,B3,F1,F2,G1,G2,G3,k05,k10,k24,k30}
+	Phase 2 and 3: {h05, h09, h10, h14, h24, h25, h50, h100, h150, hSh}
+
+The names of the final variables label the output.
+	Phase 1:
+		answer: final organism
+		callsToFitness: number of times the fitness function was called
+		sack: list of string identifiers
+		finalValue: value of final organism
+		finalCost: cost of final organism
+		finalTime: amount of time it took from beginning of reading input to output
+	Phase 2 and 3:
+		answer: final organism
+		callsToFitness: number of times the fitness function was called
+		formattedAnswer: list of lists of integer identifiers
+		happiness: fitness of answer (without any weightings)
+		finalTime: amount of time it took from beginning of reading input to output
